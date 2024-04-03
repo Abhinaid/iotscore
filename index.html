@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Score Tracker</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-image: url("—Pngtree—aesthetic plain background with pastel_1596087.png");
+        background-size: cover;
+        background-repeat: no-repeat;
+        overflow: hidden; /* Hide overflow for confetti */
+        position: relative; /* Relative positioning for container */
+      }
+      .container {
+        width: 100vw;
+        height: 100vh;
+        position: relative; /* Relative positioning for confetti */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      h1 {
+        text-align: center;
+        width: 25vw; /* Set width to one-fourth of the screen */
+        font-size: 5vw; /* Set font size to one-fourth of the screen */
+      }
+      .score {
+        margin-bottom: 20px;
+        width: 100vw; /* Set width to full width of the screen */
+        font-size: calc(
+          100vw / 25
+        ); /* Set font size dynamically based on screen width */
+        text-align: center; /* Center text horizontally */
+      }
+
+      #confettiCanvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000; /* Ensure confetti appears above other content */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="score">Score Tracker</h1>
+      <div class="score">
+        <p>Highest Voice Intensity: <span id="highestScore">0</span> db</p>
+      </div>
+      <div class="score">
+        <p>Your Voice Intensity: <span id="currentFrequency">0</span> db</p>
+      </div>
+    </div>
+    <canvas id="confettiCanvas"></canvas>
+
+    <script src="https://www.gstatic.com/firebasejs/8.9.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.9.0/firebase-database.js"></script>
+    <script>
+      var firebaseConfig = {
+        apiKey: "AIzaSyBrkYOup8axZrVykZbp2jN1bNoznm5qimk",
+        authDomain: "esp32.firebaseapp.com",
+        databaseURL: "https://esp32-6b9c5-default-rtdb.firebaseio.com",
+        projectId: "esp32-6b9c5",
+        storageBucket: "esp32.appspot.com",
+        messagingSenderId: "260871096523",
+      };
+      firebase.initializeApp(firebaseConfig);
+
+      var database = firebase.database();
+      var highestScore = 0;
+
+      function triggerConfettiAnimation() {
+        var confettiCanvas = document.getElementById("confettiCanvas");
+        var confettiCtx = confettiCanvas.getContext("2d");
+
+        // Confetti animation code
+        let W = window.innerWidth;
+        let H = window.innerHeight;
+        const maxConfettis = 150;
+        const particles = [];
+
+        const possibleColors = [
+          "DodgerBlue",
+          "OliveDrab",
+          "Gold",
+          "Pink",
+          "SlateBlue",
+          "LightBlue",
+          "Gold",
+          "Violet",
+          "PaleGreen",
+          "SteelBlue",
+          "SandyBrown",
+          "Chocolate",
+          "Crimson",
+        ];
+
+        function randomFromTo(from, to) {
+          return Math.floor(Math.random() * (to - from + 1) + from);
+        }
+
+        function confettiParticle() {
+          this.x = Math.random() * W; // x
+          this.y = Math.random() * H - H; // y
+          this.r = randomFromTo(11, 33); // radius
+          this.d = Math.random() * maxConfettis + 11;
+          this.color =
+            possibleColors[Math.floor(Math.random() * possibleColors.length)];
+          this.tilt = Math.floor(Math.random() * 33) - 11;
+          this.tiltAngleIncremental = Math.random() * 0.07 + 0.05;
+          this.tiltAngle = 0;
+
+          this.draw = function () {
+            confettiCtx.beginPath();
+            confettiCtx.lineWidth = this.r / 2;
+            confettiCtx.strokeStyle = this.color;
+            confettiCtx.moveTo(this.x + this.tilt + this.r / 3, this.y);
+            confettiCtx.lineTo(
+              this.x + this.tilt,
+              this.y + this.tilt + this.r / 5
+            );
+            return confettiCtx.stroke();
+          };
+        }
+
+        function Draw() {
+          const results = [];
+
+          // Magical recursive functional love
+          requestAnimationFrame(Draw);
+
+          confettiCtx.clearRect(0, 0, W, window.innerHeight);
+
+          for (var i = 0; i < maxConfettis; i++) {
+            results.push(particles[i].draw());
+          }
+
+          let particle = {};
+          let remainingFlakes = 0;
+          for (var i = 0; i < maxConfettis; i++) {
+            particle = particles[i];
+
+            particle.tiltAngle += particle.tiltAngleIncremental;
+            particle.y += (Math.cos(particle.d) + 3 + particle.r / 2) / 2;
+            particle.tilt = Math.sin(particle.tiltAngle - i / 3) * 15;
+
+            if (particle.y <= H) remainingFlakes++;
+
+            // If a confetti has fluttered out of view,
+            // bring it back to above the viewport and let if re-fall.
+            if (particle.x > W + 30 || particle.x < -30 || particle.y > H) {
+              particle.x = Math.random() * W;
+              particle.y = -30;
+              particle.tilt = Math.floor(Math.random() * 10) - 20;
+            }
+          }
+
+          return results;
+        }
+
+        window.addEventListener(
+          "resize",
+          function () {
+            W = window.innerWidth;
+            H = window.innerHeight;
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+          },
+          false
+        );
+
+        // Push new confetti objects to `particles[]`
+        for (var i = 0; i < maxConfettis; i++) {
+          particles.push(new confettiParticle());
+        }
+
+        // Initialize
+        confettiCanvas.width = W;
+        confettiCanvas.height = H;
+        Draw();
+
+        setTimeout(function () {
+          confettiCanvas.style.display = "none"; // Hide the confetti canvas
+        }, 4000); // 4 seconds
+
+        document.getElementById("highestScore").textContent = highestScore;
+      }
+
+      function fetchData() {
+        var ref = database.ref("test/int");
+        ref.on("value", function (snapshot) {
+          var currentFrequency = snapshot.val();
+          document.getElementById("currentFrequency").textContent =
+            currentFrequency;
+
+          if (currentFrequency >= highestScore) {
+            highestScore = currentFrequency;
+            document.getElementById("highestScore").textContent = highestScore;
+
+            var confettiCanvas = document.getElementById("confettiCanvas");
+            confettiCanvas.style.display = "block"; // Display the confetti canvas
+            triggerConfettiAnimation();
+          }
+        });
+      }
+
+      fetchData();
+    </script>
+  </body>
+</html>
